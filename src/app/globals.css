@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f7f8fb;
+  --fg: #111318;
+  --card: #ffffff;
+  --muted: #5b6070;
+  --subtle: #f0f2f6;
+  --border: #e3e6ed;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-fg: #ffffff;
+  --accent-soft: #eef0ff;
+  --accent-2: #8b5cf6;
+  --danger: #c4314b;
+  --danger-soft: #fdecef;
+  --warn: #9a6100;
+  --warn-soft: #fff4dc;
+  --ok: #1d7a4b;
+  --ok-soft: #e4f6ec;
+  --ring: #818cf8;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 8px 24px -8px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.05);
+  --glow: rgb(99 102 241 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c10;
+    --fg: #ececf1;
+    --card: #14161c;
+    --muted: #9ea2b0;
+    --subtle: #1d2027;
+    --border: #272a33;
+    --accent: #818cf8;
+    --accent-hover: #a5b4fc;
+    --accent-fg: #0b0c10;
+    --accent-soft: #1f2146;
+    --accent-2: #a78bfa;
+    --danger: #f2788d;
+    --danger-soft: #3a1c23;
+    --warn: #f1bf5b;
+    --warn-soft: #3a2e14;
+    --ok: #6fd3a0;
+    --ok-soft: #14301f;
+    --ring: #6366f1;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 12px 32px -12px rgb(0 0 0 / 0.6);
+    --glow: rgb(129 140 248 / 0.12);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ring: var(--ring);
+  --shadow-card: var(--shadow);
+  --shadow-raised: var(--shadow-lg);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(60rem 28rem at 50% -12rem, var(--glow), transparent);
+  background-repeat: no-repeat;
+  color: var(--fg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Markdown in poll descriptions */
+.prose-poll {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.prose-poll > * + * {
+  margin-top: 0.75em;
+}
+.prose-poll a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-poll ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.prose-poll ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.prose-poll blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.9em;
+  color: var(--muted);
+}
+.prose-poll code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--subtle);
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
+}
+.prose-poll pre {
+  background: var(--subtle);
+  border-radius: 8px;
+  padding: 0.8em 1em;
+  overflow-x: auto;
+}
+.prose-poll pre code {
+  background: none;
+  padding: 0;
+}
+.prose-poll h1,
+.prose-poll h2,
+.prose-poll h3 {
+  font-weight: 600;
+}
+.prose-poll table {
+  border-collapse: collapse;
+}
+.prose-poll th,
+.prose-poll td {
+  border: 1px solid var(--border);
+  padding: 0.3em 0.6em;
+}
