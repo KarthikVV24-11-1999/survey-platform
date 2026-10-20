@@ -67,7 +67,6 @@ export default async function PollPage({ params, searchParams }: Params & { sear
   const { poll, viewer } = data;
   const settings = await getSettings();
   const shareUrl = `${env().APP_URL}/polls/${poll.id}`;
-  const storyImage = `/polls/${poll.id}/story-image`;
   const justCreated = (await searchParams).created === "1" && poll.isAuthor && poll.status === "published";
 
   let blocked: VotePanelProps["blocked"] = null;
@@ -85,7 +84,7 @@ export default async function PollPage({ params, searchParams }: Params & { sear
             <p className="font-semibold">Your poll is live</p>
             <p className="mt-0.5 text-sm text-muted">Share it to start collecting votes.</p>
           </div>
-          <ShareRow url={shareUrl} title={poll.title} imageUrl={storyImage} />
+          <ShareRow url={shareUrl} title={poll.title} />
         </Card>
       )}
       {poll.status !== "published" && (
@@ -130,7 +129,7 @@ export default async function PollPage({ params, searchParams }: Params & { sear
               {poll.publishedAt && <> · {relativeTime(poll.publishedAt)}</>}
             </span>
           </div>
-          {poll.status === "published" && <ShareMenu url={shareUrl} title={poll.title} imageUrl={storyImage} />}
+          {poll.status === "published" && <ShareMenu url={shareUrl} title={poll.title} />}
         </div>
       </header>
 

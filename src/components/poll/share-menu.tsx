@@ -1,13 +1,13 @@
 "use client";
 
-import { type ComponentType, Fragment, type SVGProps, useCallback, useEffect, useRef, useState } from "react";
+import { type ComponentType, Fragment, type SVGProps, useEffect, useRef, useState } from "react";
 import { CheckIcon, LinkIcon, ShareIcon } from "../icons";
 import { FacebookIcon, InstagramIcon, LinkedInIcon, RedditIcon, TelegramIcon, WhatsAppIcon, XIcon } from "../share-icons";
 import { Button, cx } from "../ui";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 type Target = { name: string; href: string; Icon: Icon; color: string };
-type Props = { url: string; title: string; imageUrl?: string };
+type Props = { url: string; title: string };
 
 const outline = (p: SVGProps<SVGSVGElement>) => ({
   width: 18,
@@ -26,12 +26,6 @@ const MailIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...outline(p)}>
     <rect x="2" y="4" width="20" height="16" rx="2" />
     <path d="m22 6-10 7L2 6" />
-  </svg>
-);
-
-const DownloadIcon = (p: SVGProps<SVGSVGElement>) => (
-  <svg {...outline(p)}>
-    <path d="M12 3v12m-5-5 5 5 5-5M5 21h14" />
   </svg>
 );
 
@@ -76,42 +70,6 @@ function useCopy(url: string) {
   return { copied, copy };
 }
 
-// Instagram has no share link for websites. On phones we pass the story image
-// to the share sheet, where Instagram is listed, and copy the poll link so it
-// can be added with a link sticker. Elsewhere we explain how to post it.
-function useInstagram(url: string, imageUrl?: string) {
-  const file = useRef<File | null>(null);
-  const [view, setView] = useState<"idle" | "help" | "shared">("idle");
-
-  // fetched ahead of the tap, since share() has to run during the tap itself
-  const prepare = useCallback(() => {
-    if (!imageUrl || file.current || typeof navigator.canShare !== "function" || !isPhone()) return;
-    fetch(imageUrl)
-      .then((res) => (res.ok ? res.blob() : null))
-      .then((blob) => {
-        if (blob) file.current = new File([blob], "poll.png", { type: "image/png" });
-      })
-      .catch(() => {});
-  }, [imageUrl]);
-
-  async function share() {
-    navigator.clipboard?.writeText(url).catch(() => {});
-    const f = file.current;
-    if (f && navigator.canShare?.({ files: [f] })) {
-      try {
-        await navigator.share({ files: [f] });
-        setView("shared");
-        return;
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-      }
-    }
-    setView("help");
-  }
-
-  return { view, prepare, share, reset: () => setView("idle") };
-}
-
 const itemClass = (compact?: boolean) =>
   cx(
     "flex items-center rounded-xl transition hover:bg-subtle",
@@ -136,58 +94,57 @@ function TargetLink({ target, compact, onPick }: { target: Target; compact?: boo
   );
 }
 
-function InstagramButton({ compact, onClick }: { compact?: boolean; onClick: () => void }) {
+const INSTAGRAM_INBOX = "https://www.instagram.com/direct/inbox/";
+
+// Instagram has no share link for websites. Phones list it in the share sheet,
+// and it opens its own send screen with the link ready. On a computer we copy
+// the link and open Instagram's inbox so it can be pasted into a chat.
+function InstagramLink({ url, title, compact }: { url: string; title: string; compact?: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  function copyLink() {
+    navigator.clipboard?.writeText(url).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      },
+      () => {},
+    );
+  }
+
+  function onClick(e: React.MouseEvent) {
+    if (isPhone() && typeof navigator.share === "function") {
+      e.preventDefault();
+      navigator.share({ title, text: title, url }).catch((err: Error) => {
+        if (err.name !== "AbortError") copyLink();
+      });
+      return;
+    }
+    copyLink();
+  }
+
   return (
-    <button type="button" onClick={onClick} aria-label="Share on Instagram" title="Instagram" className={itemClass(compact)}>
-      <InstagramIcon style={{ color: INSTAGRAM }} />
-      {!compact && <span>Instagram</span>}
-    </button>
+    <a
+      href={INSTAGRAM_INBOX}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onClick}
+      aria-label="Share on Instagram"
+      title={copied ? "Link copied" : "Instagram"}
+      className={itemClass(compact)}
+    >
+      {copied && compact ? <CheckIcon width={18} height={18} className="text-ok" /> : <InstagramIcon style={{ color: INSTAGRAM }} />}
+      {!compact && <span>{copied ? "Instagram · link copied" : "Instagram"}</span>}
+    </a>
   );
 }
-
-const pill = "flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm transition hover:bg-subtle";
-
-function InstagramHelp({ url, imageUrl, onBack }: { url: string; imageUrl: string; onBack?: () => void }) {
-  const { copied, copy } = useCopy(url);
-  return (
-    <div className="space-y-3 p-2 text-sm">
-      <div className="flex items-center gap-2 font-medium">
-        <InstagramIcon style={{ color: INSTAGRAM }} />
-        Share on Instagram
-      </div>
-      <p className="text-muted">Instagram doesn&apos;t take links from websites, so post the image instead.</p>
-      <ol className="list-decimal space-y-1 pl-5 text-muted">
-        <li>Save the image and add it to your story.</li>
-        <li>Add a Link sticker and paste the poll link.</li>
-      </ol>
-      <div className="grid gap-2">
-        <a href={imageUrl} download="poll.png" className={pill}>
-          <DownloadIcon width={16} height={16} />
-          Save image
-        </a>
-        <button type="button" onClick={copy} className={pill}>
-          {copied ? <CheckIcon width={16} height={16} className="text-ok" /> : <LinkIcon width={16} height={16} />}
-          {copied ? "Copied" : "Copy link"}
-        </button>
-      </div>
-      {onBack && (
-        <button type="button" onClick={onBack} className="text-muted hover:text-fg">
-          Back
-        </button>
-      )}
-    </div>
-  );
-}
-
-const SHARED_NOTE = "Link copied. Add it to your story with a Link sticker.";
 
 /** Share button with a menu of networks. */
-export function ShareMenu({ url, title, imageUrl }: Props) {
+export function ShareMenu({ url, title }: Props) {
   const [open, setOpen] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { copied, copy } = useCopy(url);
-  const instagram = useInstagram(url, imageUrl);
 
   useEffect(() => {
     if (!open) return;
@@ -203,11 +160,7 @@ export function ShareMenu({ url, title, imageUrl }: Props) {
   }, [open]);
 
   function toggle() {
-    if (!open) {
-      instagram.reset();
-      instagram.prepare();
-      setCanNativeShare(typeof navigator.share === "function" && isPhone());
-    }
+    if (!open) setCanNativeShare(typeof navigator.share === "function" && isPhone());
     setOpen((v) => !v);
   }
 
@@ -228,29 +181,22 @@ export function ShareMenu({ url, title, imageUrl }: Props) {
       </Button>
       {open && (
         <div role="menu" className="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-border bg-card p-1.5 shadow-raised">
-          {instagram.view === "help" && imageUrl ? (
-            <InstagramHelp url={url} imageUrl={imageUrl} onBack={instagram.reset} />
-          ) : (
-            <>
-              {targets(url, title).map((t) => (
-                <Fragment key={t.name}>
-                  <TargetLink target={t} onPick={() => setOpen(false)} />
-                  {t.name === "WhatsApp" && imageUrl && <InstagramButton onClick={instagram.share} />}
-                  {t.name === "WhatsApp" && instagram.view === "shared" && <p className="px-3 pb-1 text-xs text-muted">{SHARED_NOTE}</p>}
-                </Fragment>
-              ))}
-              <div className="my-1 h-px bg-border" />
-              <button type="button" onClick={copy} className={itemClass()}>
-                {copied ? <CheckIcon width={18} height={18} className="text-ok" /> : <LinkIcon width={18} height={18} />}
-                {copied ? "Link copied" : "Copy link"}
-              </button>
-              {canNativeShare && (
-                <button type="button" onClick={nativeShare} className={itemClass()}>
-                  <MoreIcon />
-                  More options
-                </button>
-              )}
-            </>
+          {targets(url, title).map((t) => (
+            <Fragment key={t.name}>
+              <TargetLink target={t} onPick={() => setOpen(false)} />
+              {t.name === "WhatsApp" && <InstagramLink url={url} title={title} />}
+            </Fragment>
+          ))}
+          <div className="my-1 h-px bg-border" />
+          <button type="button" onClick={copy} className={itemClass()}>
+            {copied ? <CheckIcon width={18} height={18} className="text-ok" /> : <LinkIcon width={18} height={18} />}
+            {copied ? "Link copied" : "Copy link"}
+          </button>
+          {canNativeShare && (
+            <button type="button" onClick={nativeShare} className={itemClass()}>
+              <MoreIcon />
+              More options
+            </button>
           )}
         </div>
       )}
@@ -259,32 +205,20 @@ export function ShareMenu({ url, title, imageUrl }: Props) {
 }
 
 /** Row of share buttons, shown when a poll has just gone live. */
-export function ShareRow({ url, title, imageUrl }: Props) {
+export function ShareRow({ url, title }: Props) {
   const { copied, copy } = useCopy(url);
-  const instagram = useInstagram(url, imageUrl);
-  const { prepare } = instagram;
-  useEffect(prepare, [prepare]);
-
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {targets(url, title).map((t) => (
-          <Fragment key={t.name}>
-            <TargetLink target={t} compact />
-            {t.name === "WhatsApp" && imageUrl && <InstagramButton compact onClick={instagram.share} />}
-          </Fragment>
-        ))}
-        <Button variant="secondary" onClick={copy} className="h-10">
-          {copied ? <CheckIcon width={16} height={16} /> : <LinkIcon width={16} height={16} />}
-          {copied ? "Copied" : "Copy link"}
-        </Button>
-      </div>
-      {instagram.view === "shared" && <p className="text-sm text-muted">{SHARED_NOTE}</p>}
-      {instagram.view === "help" && imageUrl && (
-        <div className="max-w-sm rounded-xl border border-border">
-          <InstagramHelp url={url} imageUrl={imageUrl} onBack={instagram.reset} />
-        </div>
-      )}
+    <div className="flex flex-wrap items-center gap-2">
+      {targets(url, title).map((t) => (
+        <Fragment key={t.name}>
+          <TargetLink target={t} compact />
+          {t.name === "WhatsApp" && <InstagramLink url={url} title={title} compact />}
+        </Fragment>
+      ))}
+      <Button variant="secondary" onClick={copy} className="h-10">
+        {copied ? <CheckIcon width={16} height={16} /> : <LinkIcon width={16} height={16} />}
+        {copied ? "Copied" : "Copy link"}
+      </Button>
     </div>
   );
 }
