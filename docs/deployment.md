@@ -50,6 +50,8 @@ Google: in Google Cloud, set up the consent screen (external, with the email, pr
 
 Email links need a domain verified with Resend (`RESEND_API_KEY`, `EMAIL_FROM`).
 
+Phone codes use Twilio Verify. Create a Verify service, allow only India and the United States under its SMS geo permissions, and set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID`. Each successful sign-in costs about $0.05 plus the SMS fee. The app caps texts at 5 per number per hour and 100 a day in total. Sending to Indian numbers may need sender (DLT) registration, so test one before announcing it.
+
 ## 7. Check and finish
 
 ```bash

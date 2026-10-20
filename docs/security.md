@@ -4,7 +4,7 @@ A summary of how the app handles auth, input, abuse and data. To report a proble
 
 ## Accounts
 
-There are no passwords. People sign in with Google, GitHub or a one-time email link (Better Auth). Email links expire after 10 minutes and are stored hashed, and OAuth tokens are encrypted at rest.
+There are no passwords. People sign in with Google, GitHub, a text message code or a one-time email link (Better Auth). Email links expire after 10 minutes and are stored hashed, and OAuth tokens are encrypted at rest. Phone codes are created and checked by Twilio Verify. Sending one needs a Turnstile check, only India and US mobile numbers are accepted, and texts are capped per number and per day to limit SMS fraud. Phone numbers are never shown publicly.
 
 Sessions are stored in Postgres and looked up on every request, so sign-outs and bans apply immediately. A ban also deletes all of the user's sessions. Sign-in is rate limited and goes through a Turnstile check in production.
 

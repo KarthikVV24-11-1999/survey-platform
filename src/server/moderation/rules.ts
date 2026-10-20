@@ -16,6 +16,8 @@ export type RuleFindings = { block: string[]; flag: string[] };
 
 const profanityMatcher = new RegExpMatcher({ ...englishDataset.build(), ...englishRecommendedTransformers });
 
+export const hasProfanity = (text: string) => profanityMatcher.hasMatch(text);
+
 const LEET: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", $: "s", "!": "i" };
 
 export function normalizeForMatching(value: string) {

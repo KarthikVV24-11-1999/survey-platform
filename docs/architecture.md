@@ -1,6 +1,6 @@
 # Architecture
 
-A Next.js app on Vercel talking to Postgres (Neon), with images in Cloudflare R2. OpenAI handles moderation, Turnstile handles bot checks, and Resend is used for email sign-in when it's set up.
+A Next.js app on Vercel talking to Postgres (Neon), with images in Cloudflare R2. OpenAI handles moderation, Turnstile handles bot checks, Twilio Verify sends phone sign-in codes, and Resend is used for email sign-in when it's set up.
 
 All of the actual logic is in `src/server`. Pages, server actions (`src/app/actions`) and route handlers are thin layers on top, and each of them checks the session itself.
 

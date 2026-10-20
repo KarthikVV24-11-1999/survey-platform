@@ -19,9 +19,13 @@ export const isStaff = (v: Pick<Viewer, "role"> | null | undefined) =>
 
 export const isAdmin = (v: Pick<Viewer, "role"> | null | undefined) => v?.role === "admin";
 
+// Stored on held polls. Polls held only for this are released automatically.
+export const NEW_ACCOUNT_REASON = "New account: first polls are reviewed";
+
 export type PostingDecision =
   | { allowed: false; reason: string }
-  | { allowed: true; forceReview: boolean; reviewReason?: string };
+  // reviewReason is for moderators, notice is shown to the author
+  | { allowed: true; forceReview: boolean; reviewReason?: string; notice?: string };
 
 export function postingDecision(
   viewer: Pick<Viewer, "role" | "trustLevel" | "createdAt">,
@@ -38,11 +42,21 @@ export function postingDecision(
   }
   if (trusted) return { allowed: true, forceReview: false };
   if (settings.postingPolicy === "review_all") {
-    return { allowed: true, forceReview: true, reviewReason: "Site policy: all new polls are reviewed" };
+    return {
+      allowed: true,
+      forceReview: true,
+      reviewReason: "Site policy: all new polls are reviewed",
+      notice: "A moderator reviews every new poll before it goes live.",
+    };
   }
   const ageHours = (now.getTime() - viewer.createdAt.getTime()) / 3_600_000;
   if (ageHours < settings.newAccountReviewHours) {
-    return { allowed: true, forceReview: true, reviewReason: "New account: first polls are reviewed" };
+    return {
+      allowed: true,
+      forceReview: true,
+      reviewReason: NEW_ACCOUNT_REASON,
+      notice: `Your account is new, so your poll will be reviewed first. If nothing is flagged, it goes live automatically once your account is ${settings.newAccountReviewHours} hours old.`,
+    };
   }
   return { allowed: true, forceReview: false };
 }

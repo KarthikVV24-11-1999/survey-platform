@@ -11,41 +11,63 @@ import { PollAttachments } from "@/components/poll/attachments";
 import { Countdown } from "@/components/poll/countdown";
 import { OwnerActions } from "@/components/poll/owner-actions";
 import { ReportButton } from "@/components/poll/report-button";
-import { ShareButton } from "@/components/poll/share-button";
+import { ShareMenu, ShareRow } from "@/components/poll/share-menu";
 import { OpenBadge, StatusBadge } from "@/components/poll/status-badge";
 import { VotePanel, type VotePanelProps } from "@/components/poll/vote-panel";
 import { Alert, Badge, Card } from "@/components/ui";
 import { formatDateTime, initials, relativeTime } from "@/lib/format";
 import { getViewer } from "@/server/auth/session";
+import { env } from "@/server/env";
+import { releaseNewAccountHolds } from "@/server/polls/holds";
 import { getPollView } from "@/server/polls/queries";
 import { getSettings } from "@/server/settings";
 
 type Params = { params: Promise<{ id: string }> };
+
+// plain-text summary of the markdown description for link previews
+function summary(markdown: string) {
+  const text = markdown.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[#>*_`~-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return "Cast your vote and see what others think.";
+  return text.length > 160 ? `${text.slice(0, 157).trimEnd()}...` : text;
+}
 
 // cached per request so generateMetadata and the page share the queries
 const load = cache(async (id: string) => {
   if (!z.uuid().safeParse(id).success) return null;
   const viewer = await getViewer();
   const anonToken = viewer ? null : ((await cookies()).get("sp_voter")?.value ?? null);
-  const poll = await getPollView(id, viewer, anonToken);
+  let poll = await getPollView(id, viewer, anonToken);
+  // the author may be the first to notice their hold has ended
+  if (poll?.isAuthor && poll.heldForNewAccount && (await releaseNewAccountHolds({ pollId: id }))) {
+    poll = await getPollView(id, viewer, anonToken);
+  }
   return poll ? { poll, viewer } : null;
 });
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const data = await load((await params).id);
   if (!data) return { title: "Poll not found", robots: { index: false } };
+  const { poll } = data;
+  if (poll.status !== "published") return { title: poll.title, robots: { index: false, follow: false } };
+  const description = summary(poll.descriptionMd);
+  const url = `/polls/${poll.id}`;
   return {
-    title: data.poll.title,
-    robots: data.poll.status === "published" ? undefined : { index: false, follow: false },
+    title: poll.title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { type: "website", url, title: poll.title, description, siteName: "Survey Platform" },
+    twitter: { card: "summary_large_image", title: poll.title, description },
   };
 }
 
-export default async function PollPage({ params }: Params) {
+export default async function PollPage({ params, searchParams }: Params & { searchParams: Promise<{ created?: string }> }) {
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
   const { poll, viewer } = data;
   const settings = await getSettings();
+  const shareUrl = `${env().APP_URL}/polls/${poll.id}`;
+  const justCreated = (await searchParams).created === "1" && poll.isAuthor && poll.status === "published";
 
   let blocked: VotePanelProps["blocked"] = null;
   if (poll.status !== "published") blocked = { reason: "not_published" };
@@ -56,20 +78,31 @@ export default async function PollPage({ params }: Params) {
 
   return (
     <article className="mx-auto max-w-3xl space-y-6">
+      {justCreated && (
+        <Card className="space-y-3 border-ok/40 p-5">
+          <div>
+            <p className="font-semibold">Your poll is live</p>
+            <p className="mt-0.5 text-sm text-muted">Share it to start collecting votes.</p>
+          </div>
+          <ShareRow url={shareUrl} title={poll.title} />
+        </Card>
+      )}
       {poll.status !== "published" && (
         <Alert
           tone={poll.status === "pending_review" ? "warn" : "danger"}
           title={
             poll.status === "pending_review"
-              ? "This poll is waiting for a moderator"
+              ? "Pending review"
               : poll.status === "rejected"
-                ? "This poll was not published"
+                ? "This poll wasn't published"
                 : "This poll was removed"
           }
         >
-          {poll.status === "pending_review"
-            ? "Only you and the moderators can see it until it is approved."
-            : poll.statusNote}
+          {poll.status !== "pending_review"
+            ? poll.statusNote
+            : poll.heldForNewAccount
+              ? `Polls from new accounts are reviewed first. If nothing is flagged, it goes live automatically once the account is ${settings.newAccountReviewHours} hours old.`
+              : "Only you and the moderators can see it until it's approved."}
         </Alert>
       )}
 
@@ -96,7 +129,7 @@ export default async function PollPage({ params }: Params) {
               {poll.publishedAt && <> · {relativeTime(poll.publishedAt)}</>}
             </span>
           </div>
-          {poll.status === "published" && <ShareButton />}
+          {poll.status === "published" && <ShareMenu url={shareUrl} title={poll.title} />}
         </div>
       </header>
 

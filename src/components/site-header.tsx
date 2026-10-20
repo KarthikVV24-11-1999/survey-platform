@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { contactLabel } from "@/lib/phone";
 import { isStaff } from "@/server/auth/permissions";
 import { getViewer } from "@/server/auth/session";
 import { LogoMark, PlusIcon } from "./icons";
@@ -30,7 +31,7 @@ export async function SiteHeader() {
             <span>New poll</span>
           </ButtonLink>
           {viewer ? (
-            <UserMenu name={viewer.name} email={viewer.email} />
+            <UserMenu name={viewer.name} email={contactLabel(viewer.email)} />
           ) : (
             <ButtonLink href="/sign-in" variant="secondary" size="sm">
               Sign in

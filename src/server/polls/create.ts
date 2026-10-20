@@ -13,7 +13,7 @@ import { getSettings } from "../settings";
 
 export type CreatePollResult = { id: string; status: "published" | "pending_review" | "rejected" };
 
-const REJECTED_NOTE = "This poll appears to break the content policy, so it was not published.";
+const REJECTED_NOTE = "This poll wasn't published because it breaks our content rules.";
 const IMAGE_GONE = "One of your images is no longer available. Please upload it again.";
 
 export async function createPoll(viewer: Viewer, raw: unknown, ctx: { ip: string | null }): Promise<CreatePollResult> {

@@ -2,9 +2,11 @@ import { QueueList } from "@/components/admin/queue-list";
 import { PageHeader } from "@/components/ui";
 import { getReviewQueue } from "@/server/admin/queries";
 import { staffPageGuard } from "@/server/auth/session";
+import { releaseNewAccountHolds } from "@/server/polls/holds";
 
 export default async function QueuePage() {
   await staffPageGuard();
+  await releaseNewAccountHolds();
   const items = await getReviewQueue();
   return (
     <div>

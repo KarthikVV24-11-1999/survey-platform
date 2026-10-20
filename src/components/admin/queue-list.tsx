@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatDateTime, relativeTime } from "@/lib/format";
+import { contactLabel } from "@/lib/phone";
 import { StatusBadge } from "../poll/status-badge";
 import { Badge, Card, EmptyState } from "../ui";
 import { PollModerationButtons } from "./poll-moderation-buttons";
@@ -36,7 +37,7 @@ export function QueueList({ items, empty }: { items: QueueItem[]; empty: string 
                 </Link>
                 <p className="mt-1 text-xs text-muted">
                   {formatDateTime(item.createdAt.toISOString())} · by {item.authorName ?? "deleted user"}
-                  {item.authorEmail && <> ({item.authorEmail})</>}
+                  {item.authorEmail && <> ({contactLabel(item.authorEmail)})</>}
                   {item.authorCreatedAt && <> · joined {relativeTime(item.authorCreatedAt.toISOString())}</>}
                 </p>
               </div>

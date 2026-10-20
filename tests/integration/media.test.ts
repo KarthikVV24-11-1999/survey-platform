@@ -48,7 +48,7 @@ describe("uploadImage", () => {
   it("refuses clearly unacceptable images without storing anything", async () => {
     mockModerate.mockResolvedValue({ available: true, flagged: true, categories: ["sexual"], scores: { sexual: 0.97 } });
     const owner = await makeUser();
-    await expect(uploadImage(owner, await png())).rejects.toThrow(/content policy/);
+    await expect(uploadImage(owner, await png())).rejects.toThrow(/content rules/);
     expect(await db().select().from(media)).toHaveLength(0);
   });
 

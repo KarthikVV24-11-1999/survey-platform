@@ -4,6 +4,7 @@ import { db } from "@/server/db/client";
 import { rateLimit, session, verification } from "@/server/db/schema";
 import { env } from "@/server/env";
 import { deleteOrphanMedia } from "@/server/media/service";
+import { releaseNewAccountHolds } from "@/server/polls/holds";
 import { safeEqual } from "@/server/security/hmac";
 import { pruneRateLimits } from "@/server/security/rate-limit";
 
@@ -17,11 +18,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const releasedPolls = await releaseNewAccountHolds();
   const orphanMedia = await deleteOrphanMedia();
   await pruneRateLimits();
   await db().delete(session).where(lt(session.expiresAt, sql`now()`));
   await db().delete(verification).where(lt(verification.expiresAt, sql`now()`));
   await db().delete(rateLimit).where(lt(rateLimit.lastRequest, Date.now() - 2 * 86_400_000));
 
-  return NextResponse.json({ ok: true, orphanMedia }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ ok: true, releasedPolls, orphanMedia }, { headers: { "Cache-Control": "no-store" } });
 }

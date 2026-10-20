@@ -143,7 +143,7 @@ const TARGET: Record<StaffPollAction, PollStatus> = {
 };
 const DEFAULT_NOTE: Partial<Record<StaffPollAction, string>> = {
   reject: "A moderator reviewed this poll and decided not to publish it.",
-  remove: "A moderator removed this poll for breaking the content policy.",
+  remove: "A moderator removed this poll for breaking our content rules.",
 };
 
 export async function moderatePollAction(staff: Viewer, pollId: string, action: StaffPollAction, note?: string) {

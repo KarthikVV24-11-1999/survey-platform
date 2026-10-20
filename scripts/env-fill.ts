@@ -14,6 +14,8 @@ const HINTS: Record<string, string> = {
   S3_BUCKET: "bucket name, e.g. survey-media",
   APP_URL: "https://<project>.vercel.app (no trailing slash)",
   OPENAI_API_KEY: "starts with sk-",
+  TWILIO_ACCOUNT_SID: "starts with AC",
+  TWILIO_VERIFY_SERVICE_SID: "starts with VA",
 };
 
 function normalize(key: string, value: string): { value: string } | { error: string } {

@@ -29,6 +29,11 @@ const schema = z
 
     OPENAI_API_KEY: optional,
 
+    // Twilio Verify, for phone sign-in
+    TWILIO_ACCOUNT_SID: optional,
+    TWILIO_AUTH_TOKEN: optional,
+    TWILIO_VERIFY_SERVICE_SID: optional,
+
     STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     S3_ENDPOINT: optional,
     S3_REGION: z.string().default("auto"),
@@ -49,6 +54,10 @@ const schema = z
     pair(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, "GitHub OAuth");
     pair(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, "Google OAuth");
     pair(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY, env.TURNSTILE_SECRET_KEY, "Turnstile");
+    const twilio = [env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_VERIFY_SERVICE_SID].filter(Boolean).length;
+    if (twilio !== 0 && twilio !== 3) {
+      ctx.addIssue({ code: "custom", message: "Twilio: set the account SID, auth token and Verify service SID, or none of them" });
+    }
     if (env.RESEND_API_KEY && !env.EMAIL_FROM) {
       ctx.addIssue({ code: "custom", message: "EMAIL_FROM is required when RESEND_API_KEY is set" });
     }
@@ -72,8 +81,8 @@ const schema = z
     if (!env.APP_URL.startsWith("https://")) {
       ctx.addIssue({ code: "custom", message: "APP_URL must use https in production" });
     }
-    if (!env.GITHUB_CLIENT_ID && !env.GOOGLE_CLIENT_ID && !env.RESEND_API_KEY) {
-      ctx.addIssue({ code: "custom", message: "Configure at least one sign-in method (GitHub, Google or Resend email)" });
+    if (!env.GITHUB_CLIENT_ID && !env.GOOGLE_CLIENT_ID && !env.RESEND_API_KEY && !env.TWILIO_VERIFY_SERVICE_SID) {
+      ctx.addIssue({ code: "custom", message: "Configure at least one sign-in method (GitHub, Google, email or phone)" });
     }
   });
 

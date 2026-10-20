@@ -9,10 +9,15 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const description = "Ask questions, vote, and see what people think.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   title: { default: "Survey Platform", template: "%s · Survey Platform" },
-  description: "Ask questions, vote, and see what people think.",
+  description,
   referrer: "strict-origin-when-cross-origin",
+  openGraph: { type: "website", siteName: "Survey Platform", title: "Survey Platform", description },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

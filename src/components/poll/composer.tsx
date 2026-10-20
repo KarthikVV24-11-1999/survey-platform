@@ -116,7 +116,7 @@ export function PollComposer({ allowAnonymous }: { allowAnonymous: boolean }) {
         setToken(null);
         return;
       }
-      router.push(`/polls/${result.data.id}`);
+      router.push(`/polls/${result.data.id}?created=1`);
     });
   }
 
@@ -126,7 +126,7 @@ export function PollComposer({ allowAnonymous }: { allowAnonymous: boolean }) {
     <form onSubmit={submit} className="space-y-6" noValidate>
       <Card className="space-y-5 p-4 sm:p-6">
         <Field label="Question" htmlFor="title" error={errors.title} hint={`${title.length}/${LIMITS.titleMax}`}>
-          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={LIMITS.titleMax} placeholder="What should we ask?" aria-invalid={Boolean(errors.title)} required />
+          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={LIMITS.titleMax} placeholder="What do you want to ask?" aria-invalid={Boolean(errors.title)} required />
         </Field>
 
         <div className="space-y-1.5">

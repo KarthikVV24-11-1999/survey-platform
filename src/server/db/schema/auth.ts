@@ -19,6 +19,9 @@ export const user = pgTable("users", {
   email: text().notNull().unique(),
   emailVerified: boolean().notNull().default(false),
   image: text(),
+  // set by the phone sign-in plugin
+  phoneNumber: text().unique(),
+  phoneNumberVerified: boolean(),
   ...timestamps,
   // only set by admins (input: false in auth.ts)
   role: userRole().notNull().default("user"),

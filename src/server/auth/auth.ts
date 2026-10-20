@@ -4,15 +4,25 @@ import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { captcha } from "better-auth/plugins/captcha";
 import { magicLink } from "better-auth/plugins/magic-link";
+import { phoneNumber } from "better-auth/plugins/phone-number";
+import { randomInt } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { isAllowedPhone, isPhoneEmail, phoneEmail } from "@/lib/phone";
 import { cleanLine } from "@/lib/validation";
 import { db } from "../db/client";
 import { account, rateLimit, session, user, verification } from "../db/schema";
 import { emailSignInEnabled, sendMagicLinkEmail } from "../email";
 import { env } from "../env";
+import { hasProfanity } from "../moderation/rules";
+import { checkPhoneCode, phoneSignInEnabled, sendPhoneCode, usingTwilio } from "../sms";
 
+const memberName = () => `Member ${randomInt(1000, 10000)}`;
+
+// Names are public, so never fall back to a phone number and skip profanity.
 function displayName(name: string | null | undefined, email: string) {
-  return (cleanLine(name ?? "") || email.split("@")[0] || "user").slice(0, 60);
+  const local = isPhoneEmail(email) ? "" : (email.split("@")[0] ?? "");
+  const pick = [cleanLine(name ?? ""), local].find((n) => n && !hasProfanity(n));
+  return (pick ?? memberName()).slice(0, 60);
 }
 
 function createAuth() {
@@ -40,8 +50,11 @@ function createAuth() {
       provider: "pg",
       schema: { user, session, account, verification, rateLimit },
     }),
-    // no passwords, only OAuth and email links
+    // no passwords, only OAuth, email links and phone codes
     emailAndPassword: { enabled: false },
+    // Names change through our own action (src/server/account.ts), and the
+    // phone plugin's password routes aren't used.
+    disabledPaths: ["/update-user", "/sign-in/phone-number", "/phone-number/request-password-reset", "/phone-number/reset-password"],
     socialProviders,
     account: {
       // we don't use the tokens, but they get stored, so encrypt them
@@ -72,6 +85,8 @@ function createAuth() {
       customRules: {
         "/sign-in/magic-link": { window: 300, max: 3 },
         "/sign-in/social": { window: 60, max: 10 },
+        "/phone-number/send-otp": { window: 600, max: 3 },
+        "/phone-number/verify": { window: 600, max: 10 },
         "/delete-user": { window: 3600, max: 3 },
       },
     },
@@ -89,7 +104,7 @@ function createAuth() {
         },
         update: {
           before: async (changes) =>
-            typeof changes.name === "string" ? { data: { ...changes, name: displayName(changes.name, "user@") } } : undefined,
+            typeof changes.name === "string" ? { data: { ...changes, name: displayName(changes.name, "") } } : undefined,
         },
       },
       session: {
@@ -117,12 +132,25 @@ function createAuth() {
             }),
           ]
         : []),
+      ...(phoneSignInEnabled()
+        ? [
+            phoneNumber({
+              expiresIn: 600,
+              allowedAttempts: 5,
+              phoneNumberValidator: isAllowedPhone,
+              sendOTP: ({ phoneNumber, code }) => sendPhoneCode(phoneNumber, code),
+              // Twilio makes and checks its own codes
+              ...(usingTwilio() ? { verifyOTP: ({ phoneNumber, code }) => checkPhoneCode(phoneNumber, code) } : {}),
+              signUpOnVerification: { getTempEmail: phoneEmail, getTempName: memberName },
+            }),
+          ]
+        : []),
       ...(e.TURNSTILE_SECRET_KEY
         ? [
             captcha({
               provider: "cloudflare-turnstile",
               secretKey: e.TURNSTILE_SECRET_KEY,
-              endpoints: ["/sign-in/magic-link", "/sign-in/social"],
+              endpoints: ["/sign-in/magic-link", "/sign-in/social", "/phone-number/send-otp"],
               expectedAction: "sign-in",
               ...(production ? { allowedHostnames: [new URL(e.APP_URL).hostname] } : {}),
             }),
@@ -148,5 +176,6 @@ export function signInMethods() {
     github: Boolean(e.GITHUB_CLIENT_ID),
     google: Boolean(e.GOOGLE_CLIENT_ID),
     email: emailSignInEnabled(),
+    phone: phoneSignInEnabled(),
   };
 }

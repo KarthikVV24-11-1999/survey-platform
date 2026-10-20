@@ -25,7 +25,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
     <form onSubmit={save} className="space-y-6">
       <Card className="space-y-5 p-4 sm:p-6">
         <h2 className="font-semibold">Who can post</h2>
-        <Field label="Posting policy" htmlFor="postingPolicy" hint="Trusted users and staff always skip policy review (but never AI or rule checks).">
+        <Field label="Posting policy" htmlFor="postingPolicy" hint="Trusted users and staff skip this, but their polls still go through the automatic checks.">
           <Select id="postingPolicy" value={s.postingPolicy} onChange={(e) => set("postingPolicy", e.target.value as SiteSettings["postingPolicy"])}>
             <option value="open">Open: clean polls publish immediately</option>
             <option value="review_all">Review all: a moderator approves every poll</option>
@@ -33,7 +33,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
           </Select>
         </Field>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Review polls from accounts younger than (hours)" htmlFor="newAccountReviewHours">
+          <Field label="Hold polls from accounts newer than (hours)" htmlFor="newAccountReviewHours" hint="Held polls go live on their own after this, unless something else was flagged.">
             <Input id="newAccountReviewHours" type="number" min={0} max={720} value={s.newAccountReviewHours} onChange={(e) => set("newAccountReviewHours", num(e.target.value))} />
           </Field>
           <Field label="Max polls per user per day" htmlFor="maxPollsPerDay">
@@ -73,7 +73,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={s.publishWhenAiUnavailable} onChange={(e) => set("publishWhenAiUnavailable", e.target.checked)} className="mt-0.5 size-4 accent-[var(--accent)]" />
           <span>
-            Publish when AI moderation is unavailable <span className="text-muted">(not recommended: by default such polls wait for review)</span>
+            Publish when AI moderation is unavailable <span className="text-muted">(not recommended, otherwise they wait for review)</span>
           </span>
         </label>
       </Card>

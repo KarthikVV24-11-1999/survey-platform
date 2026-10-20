@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { videoEmbedUrl } from "@/lib/embeds";
-import { canSeeResults, canViewPoll, isStaff, type Viewer } from "../auth/permissions";
+import { NEW_ACCOUNT_REASON, canSeeResults, canViewPoll, isStaff, type Viewer } from "../auth/permissions";
 import { db } from "../db/client";
 import { ballotChoices, ballots, media, moderationEvents, pollAttachments, pollOptions, polls, reports, user } from "../db/schema";
 import { mediaUrl } from "../media/storage";
@@ -149,6 +149,12 @@ export async function getPollView(pollId: string, viewer: Viewer | null, anonTok
     }),
     myChoices,
     resultsVisible,
+    // held only because the author's account is new, so it will be released
+    heldForNewAccount:
+      (isAuthor || staff) &&
+      row.status === "pending_review" &&
+      row.moderationReasons.length === 1 &&
+      row.moderationReasons[0] === NEW_ACCOUNT_REASON,
     isAuthor,
     isStaff: staff,
     hasReported: reported.length > 0,
@@ -230,4 +236,19 @@ export async function listPollsByAuthor(authorId: string) {
     .orderBy(desc(polls.createdAt))
     .limit(200);
   return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+}
+
+// For link preview images: published polls only, and no vote counts.
+export async function getPublicPollPreview(pollId: string) {
+  const poll = await db().query.polls.findFirst({
+    where: and(eq(polls.id, pollId), eq(polls.status, "published")),
+    columns: { title: true },
+  });
+  if (!poll) return null;
+  const options = await db()
+    .select({ label: pollOptions.label })
+    .from(pollOptions)
+    .where(eq(pollOptions.pollId, pollId))
+    .orderBy(asc(pollOptions.position));
+  return { title: poll.title, options: options.slice(0, 4).map((o) => o.label), optionCount: options.length };
 }

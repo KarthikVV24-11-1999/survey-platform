@@ -1,3 +1,4 @@
+import { contactLabel } from "@/lib/phone";
 import type { Executor } from "./db/client";
 import { auditLog } from "./db/schema";
 
@@ -29,7 +30,7 @@ export async function audit(
 ) {
   await executor.insert(auditLog).values({
     actorId: actor.id,
-    actorLabel: actor.email,
+    actorLabel: contactLabel(actor.email),
     action,
     targetType: target.type,
     targetId: target.id,

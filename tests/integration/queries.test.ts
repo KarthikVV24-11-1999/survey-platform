@@ -1,6 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { getAuditLog, getDashboardStats, getRecentlyRejected, getReportedPublished, getReviewQueue, listUsers } from "@/server/admin/queries";
+import { getAuditLog, getDashboardStats, getReportedPublished, getReviewQueue, listAllPolls, listUsers } from "@/server/admin/queries";
 import { db } from "@/server/db/client";
 import { polls, reports } from "@/server/db/schema";
 import { listPollsByAuthor, listPublishedPolls } from "@/server/polls/queries";
@@ -64,7 +64,7 @@ describe("admin console queries", () => {
     expect((await listUsers({ q: "%", page: 0 })).users).toHaveLength(0);
   });
 
-  it("builds the review queue, reported list, rejected list and stats", async () => {
+  it("builds the review queue, reported list, poll list and stats", async () => {
     const author = await makeUser();
     const reporter = await makeUser();
     const pending = await makePoll({ authorId: author.id, status: "pending_review", options: ["One", "Two"] });
@@ -80,8 +80,9 @@ describe("admin console queries", () => {
     expect(reported).toHaveLength(1);
     expect(reported[0]).toMatchObject({ id: live.id, reports: [{ reason: "spam", details: "ads" }] });
 
-    await db().update(polls).set({ updatedAt: sql`now()` }).where(eq(polls.id, rejected.id));
-    expect((await getRecentlyRejected()).map((p) => p.id)).toEqual([rejected.id]);
+    expect((await listAllPolls({ status: "rejected", sort: "new", page: 0 })).polls.map((p) => p.id)).toEqual([rejected.id]);
+    await db().update(polls).set({ reportCount: 1 }).where(eq(polls.id, live.id));
+    expect((await listAllPolls({ sort: "reports", page: 0 })).polls[0].id).toBe(live.id);
 
     expect(await getDashboardStats()).toMatchObject({ users: 2, published: 1, pending: 1, rejected: 1, open_reports: 1 });
     expect((await getAuditLog(0)).entries).toEqual([]);

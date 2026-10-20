@@ -20,6 +20,7 @@ async function main() {
   console.log(`  GitHub sign-in ..... ${on(e.GITHUB_CLIENT_ID)}`);
   console.log(`  Google sign-in ..... ${on(e.GOOGLE_CLIENT_ID)}`);
   console.log(`  Email sign-in ...... ${on(e.RESEND_API_KEY)}`);
+  console.log(`  Phone sign-in ...... ${on(e.TWILIO_VERIFY_SERVICE_SID)}`);
   console.log(`  AI moderation ...... ${on(e.OPENAI_API_KEY)}${e.OPENAI_API_KEY ? "" : "  (new polls will wait for a moderator)"}`);
   console.log(`  Storage ............ ${e.STORAGE_DRIVER} (${e.S3_BUCKET ?? "-"})`);
   console.log(`  Client IP header ... ${e.TRUSTED_IP_HEADER}`);

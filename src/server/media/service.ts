@@ -22,7 +22,7 @@ export async function uploadImage(viewer: Viewer, bytes: Buffer): Promise<Upload
   const verdict = await moderateImage(image.preview);
   if (imageIsBlocked(verdict, settings)) {
     console.warn("[media] blocked image upload", { userId: viewer.id, categories: verdict.categories });
-    throw new AppError("This image can't be used because it appears to violate the content policy.");
+    throw new AppError("This image can't be used because it breaks our content rules.");
   }
 
   const id = randomUUID();

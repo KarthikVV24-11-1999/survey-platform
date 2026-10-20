@@ -74,15 +74,39 @@ export async function getReportedPublished() {
   return withQueueDetails(rows);
 }
 
-export async function getRecentlyRejected() {
+export type AdminPollStatus = "pending_review" | "published" | "rejected" | "removed";
+export type AdminPollSort = "new" | "votes" | "reports";
+
+export async function listAllPolls(opts: { status?: AdminPollStatus; q?: string; sort: AdminPollSort; page: number }) {
+  const q = opts.q?.trim().slice(0, 100);
+  const order = {
+    new: [desc(polls.createdAt)],
+    votes: [desc(polls.ballotCount), desc(polls.createdAt)],
+    reports: [desc(polls.reportCount), desc(polls.createdAt)],
+  }[opts.sort];
   const rows = await db()
-    .select(queueColumns)
+    .select({
+      id: polls.id,
+      title: polls.title,
+      status: polls.status,
+      ballotCount: polls.ballotCount,
+      reportCount: polls.reportCount,
+      createdAt: polls.createdAt,
+      authorName: user.name,
+      authorEmail: user.email,
+    })
     .from(polls)
     .leftJoin(user, eq(user.id, polls.authorId))
-    .where(and(sql`${polls.status} in ('rejected', 'removed')`, sql`${polls.updatedAt} > now() - interval '14 days'`))
-    .orderBy(desc(polls.updatedAt))
-    .limit(PAGE);
-  return withQueueDetails(rows);
+    .where(
+      and(
+        opts.status ? eq(polls.status, opts.status) : undefined,
+        q ? sql`${polls.search} @@ websearch_to_tsquery('english', ${q})` : undefined,
+      ),
+    )
+    .orderBy(...order)
+    .limit(PAGE + 1)
+    .offset(Math.min(opts.page, 200) * PAGE);
+  return { polls: rows.slice(0, PAGE), hasMore: rows.length > PAGE };
 }
 
 export async function getDashboardStats() {

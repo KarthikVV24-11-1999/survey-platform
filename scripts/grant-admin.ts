@@ -6,15 +6,19 @@ import { auditLog, user } from "../src/server/db/schema";
 // Sets a user's role. They need to have signed in once first.
 //
 //   npm run admin:grant -- someone@example.com [admin|moderator|user]
+//   npm run admin:grant -- +919876543210 [admin|moderator|user]
 async function main() {
-  const [email, role = "admin"] = process.argv.slice(2);
-  if (!email || !["admin", "moderator", "user"].includes(role)) {
-    console.error("Usage: npm run admin:grant -- <email> [admin|moderator|user]");
+  const [login, role = "admin"] = process.argv.slice(2);
+  if (!login || !["admin", "moderator", "user"].includes(role)) {
+    console.error("Usage: npm run admin:grant -- <email or +phone> [admin|moderator|user]");
     process.exit(1);
   }
-  const target = await db().query.user.findFirst({ where: eq(user.email, email.toLowerCase().trim()) });
+  const key = login.trim();
+  const target = await db().query.user.findFirst({
+    where: key.startsWith("+") ? eq(user.phoneNumber, key.replace(/[^\d+]/g, "")) : eq(user.email, key.toLowerCase()),
+  });
   if (!target) {
-    console.error(`No account for ${email}. Sign in to the site once first.`);
+    console.error(`No account for ${login}. Sign in to the site once first.`);
     process.exit(1);
   }
   await db().transaction(async (tx) => {
@@ -28,7 +32,7 @@ async function main() {
       details: { from: target.role, to: role },
     });
   });
-  console.log(`${email} is now ${role}.`);
+  console.log(`${login} is now ${role}.`);
 }
 
 main()

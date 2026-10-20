@@ -48,7 +48,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             What do{" "}
             <span className="bg-linear-to-r from-[var(--accent)] to-[var(--accent-2)] bg-clip-text text-transparent">people think?</span>
           </h1>
-          <p className="mt-3 text-muted">Ask a question, share it, and watch the results come in.</p>
+          <p className="mt-3 text-muted">Ask a question, share the link, and see how people vote.</p>
         </div>
         <ButtonLink href="/polls/new" size="lg">
           <PlusIcon width={16} height={16} />

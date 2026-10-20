@@ -11,6 +11,10 @@ export const RATE_LIMITS = {
   upload: { limit: 30, windowSeconds: 60 * 60 },
   report: { limit: 20, windowSeconds: 24 * 60 * 60 },
   staffAction: { limit: 120, windowSeconds: 60 },
+  renameAccount: { limit: 5, windowSeconds: 60 * 60 },
+  // each text costs money, so cap them per number and for the whole site
+  smsPerNumber: { limit: 5, windowSeconds: 60 * 60 },
+  smsDaily: { limit: 100, windowSeconds: 24 * 60 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 // Fixed window counter in Postgres, shared by all instances. Could move to Redis later.

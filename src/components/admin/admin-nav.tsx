@@ -8,7 +8,7 @@ const LINKS = [
   { href: "/admin", label: "Overview", adminOnly: false },
   { href: "/admin/queue", label: "Review queue", adminOnly: false },
   { href: "/admin/reports", label: "Reports", adminOnly: false },
-  { href: "/admin/rejected", label: "Rejected", adminOnly: false },
+  { href: "/admin/polls", label: "Polls", adminOnly: false },
   { href: "/admin/users", label: "Users", adminOnly: false },
   { href: "/admin/terms", label: "Word & domain lists", adminOnly: true },
   { href: "/admin/settings", label: "Settings", adminOnly: true },

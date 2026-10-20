@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Alert, Card, PageHeader } from "@/components/ui";
+import { Alert, Card, PageHeader, cx } from "@/components/ui";
 import { getDashboardStats } from "@/server/admin/queries";
 import { staffPageGuard } from "@/server/auth/session";
 import { env } from "@/server/env";
@@ -19,12 +19,12 @@ export default async function AdminOverview() {
   const tiles = [
     { label: "Awaiting review", value: stats.pending, href: "/admin/queue", highlight: stats.pending > 0 },
     { label: "Open reports", value: stats.open_reports, href: "/admin/reports", highlight: stats.open_reports > 0 },
-    { label: "Published polls", value: stats.published },
-    { label: "Votes (24h)", value: stats.ballots_24h },
-    { label: "Users", value: stats.users },
-    { label: "New users (7d)", value: stats.new_users_7d },
-    { label: "Rejected", value: stats.rejected, href: "/admin/rejected" },
-    { label: "Removed", value: stats.removed, href: "/admin/rejected" },
+    { label: "Published polls", value: stats.published, href: "/admin/polls?status=published" },
+    { label: "Votes (24h)", value: stats.ballots_24h, href: "/admin/polls?status=published&sort=votes" },
+    { label: "Users", value: stats.users, href: "/admin/users" },
+    { label: "New users (7d)", value: stats.new_users_7d, href: "/admin/users" },
+    { label: "Rejected", value: stats.rejected, href: "/admin/polls?status=rejected" },
+    { label: "Removed", value: stats.removed, href: "/admin/polls?status=removed" },
   ];
 
   return (
@@ -37,21 +37,14 @@ export default async function AdminOverview() {
         </Alert>
       )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {tiles.map((tile) => {
-          const body = (
-            <Card className={tile.highlight ? "border-warn/50 p-4" : "p-4"}>
+        {tiles.map((tile) => (
+          <Link key={tile.label} href={tile.href} className="group">
+            <Card className={cx("p-4 transition group-hover:border-accent/60 group-hover:shadow-raised", tile.highlight && "border-warn/50")}>
               <p className="text-xs text-muted">{tile.label}</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">{tile.value.toLocaleString("en")}</p>
             </Card>
-          );
-          return tile.href ? (
-            <Link key={tile.label} href={tile.href} className="hover:opacity-90">
-              {body}
-            </Link>
-          ) : (
-            <div key={tile.label}>{body}</div>
-          );
-        })}
+          </Link>
+        ))}
       </div>
     </div>
   );

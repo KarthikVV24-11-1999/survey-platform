@@ -21,11 +21,7 @@ export default async function NewPollPage() {
         </Alert>
       ) : (
         <div className="space-y-4">
-          {posting.forceReview && (
-            <Alert tone="neutral">
-              {posting.reviewReason}. Your poll will be visible to everyone once a moderator approves it.
-            </Alert>
-          )}
+          {posting.notice && <Alert tone="neutral">{posting.notice}</Alert>}
           <PollComposer allowAnonymous={settings.allowAnonymousPolls} />
         </div>
       )}

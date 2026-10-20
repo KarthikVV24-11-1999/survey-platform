@@ -13,7 +13,7 @@ A polling site where people post questions, others vote, and admins keep an eye 
 
 ## Stack
 
-Next.js 16, React 19, TypeScript and Tailwind CSS, with Postgres (Neon) through Drizzle. Auth is Better Auth with Google, GitHub and email links. Images go to Cloudflare R2, Turnstile handles bot checks, and it's hosted on Vercel. Everything runs on free tiers at this scale.
+Next.js 16, React 19, TypeScript and Tailwind CSS, with Postgres (Neon) through Drizzle. Auth is Better Auth with Google, GitHub, phone codes and email links. Images go to Cloudflare R2, Turnstile handles bot checks, and it's hosted on Vercel. Everything runs on free tiers at this scale.
 
 ## Running locally
 
@@ -27,7 +27,7 @@ npm run seed                 # optional demo data
 npm run dev
 ```
 
-To sign in locally, use the email option. The sign-in link is printed in the terminal. Then make yourself an admin:
+To sign in locally, use the phone or email option. The code or link is printed in the terminal. Then make yourself an admin:
 
 ```bash
 npm run admin:grant -- you@example.com

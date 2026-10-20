@@ -1,6 +1,7 @@
 import { BanButton, RoleSelect, TrustSelect } from "@/components/admin/user-controls";
 import { Badge, ButtonLink, Card, Input, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
+import { contactLabel } from "@/lib/phone";
 import { listUsers } from "@/server/admin/queries";
 import { canManageUser, isAdmin } from "@/server/auth/permissions";
 import { staffPageGuard } from "@/server/auth/session";
@@ -43,7 +44,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                   <p className="font-medium">
                     {u.name} {u.id === viewer.id && <Badge>you</Badge>} {u.banned && <Badge tone="danger">banned</Badge>}
                   </p>
-                  <p className="text-xs text-muted">{u.email}</p>
+                  <p className="text-xs text-muted">{contactLabel(u.email)}</p>
                   {u.banned && u.banReason && <p className="text-xs text-danger">{u.banReason}</p>}
                 </td>
                 <td className="px-4 py-3 text-muted">{formatDateTime(u.createdAt.toISOString())}</td>
