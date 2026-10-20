@@ -18,6 +18,8 @@ type Target = {
   sameTab?: boolean;
   // copies the poll link first, for apps that can't take it in the link
   note?: string;
+  // opens the phone's share sheet, where the app's own composer takes the link
+  shareSheet?: boolean;
   // shown next to the icon in the compact row
   short?: string;
 };
@@ -66,8 +68,8 @@ const MESSENGER_WEB = "https://www.facebook.com/messages/";
 //   own fb-messenger://share link. On a computer it copies and opens chats.
 // - X's iPhone app opens its web share links in a built-in browser, so iPhones
 //   get the app's twitter://post link, which opens the compose screen.
-// - Facebook's app opens sharer.php but ignores the link, so phones copy it
-//   first, ready to paste into a post or story.
+// - Facebook's app opens sharer.php but ignores the link, so phones use the
+//   share sheet, where Facebook's composer gets the link with its preview.
 // - LinkedIn's app claims /cws/share and opens its share screen for it.
 function targets(url: string, title: string, device: Device): Target[] {
   const u = encodeURIComponent(url);
@@ -131,7 +133,7 @@ function targets(url: string, title: string, device: Device): Target[] {
       href: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
       Icon: FacebookIcon,
       color: "#1877F2",
-      note: phone ? "Link copied. Paste it in a new Facebook post or story." : undefined,
+      shareSheet: phone,
     },
     { name: "LinkedIn", href: `https://www.linkedin.com/cws/share?url=${u}`, Icon: LinkedInIcon, color: "#0A66C2" },
     { name: "Telegram", href: `https://t.me/share/url?url=${u}&text=${t}`, Icon: TelegramIcon, color: "#26A5E4" },
@@ -215,11 +217,16 @@ const itemClass = (compact?: boolean, short?: boolean) =>
     compact && (short ? "gap-2 px-3 text-sm" : "w-10"),
   );
 
-function TargetLink({ target, url, compact, onPick }: { target: Target; url: string; compact?: boolean; onPick: (note?: string) => void }) {
+function TargetLink({ target, url, title, compact, onPick }: { target: Target; url: string; title: string; compact?: boolean; onPick: (note?: string) => void }) {
   const { Icon } = target;
 
-  function onClick() {
-    if (target.note) navigator.clipboard?.writeText(url).catch(() => {});
+  function onClick(e: React.MouseEvent) {
+    if (target.shareSheet && typeof navigator.share === "function") {
+      e.preventDefault();
+      openShareSheet({ title, text: title, url });
+    } else if (target.note) {
+      navigator.clipboard?.writeText(url).catch(() => {});
+    }
     onPick(target.note);
   }
 
@@ -287,7 +294,7 @@ export function ShareMenu({ url, title }: Props) {
       {open && (
         <div role="menu" className="absolute right-0 z-30 mt-2 max-h-[70vh] w-64 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-raised">
           {targets(url, title, device).map((t) => (
-            <TargetLink key={t.name} target={t} url={url} onPick={pick} />
+            <TargetLink key={t.name} target={t} url={url} title={title} onPick={pick} />
           ))}
           <div className="my-1 h-px bg-border" />
           <button type="button" onClick={copy} className={itemClass()}>
@@ -316,7 +323,7 @@ export function ShareRow({ url, title }: Props) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         {targets(url, title, device).map((t) => (
-          <TargetLink key={t.name} target={t} url={url} compact onPick={(note) => note && notice.show(note)} />
+          <TargetLink key={t.name} target={t} url={url} title={title} compact onPick={(note) => note && notice.show(note)} />
         ))}
         <Button variant="secondary" onClick={copy} className="h-10">
           {copied ? <CheckIcon width={16} height={16} /> : <LinkIcon width={16} height={16} />}
