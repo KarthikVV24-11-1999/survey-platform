@@ -1,13 +1,28 @@
 "use client";
 
-import { type ComponentType, Fragment, type SVGProps, useEffect, useRef, useState } from "react";
+import { type ComponentType, type SVGProps, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CheckIcon, LinkIcon, ShareIcon } from "../icons";
-import { FacebookIcon, InstagramIcon, LinkedInIcon, RedditIcon, TelegramIcon, WhatsAppIcon, XIcon } from "../share-icons";
+import { FacebookIcon, InstagramIcon, LinkedInIcon, MessengerIcon, RedditIcon, TelegramIcon, WhatsAppIcon, XIcon } from "../share-icons";
 import { Button, cx } from "../ui";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
-type Target = { name: string; href: string; Icon: Icon; color: string };
+type Device = "desktop" | "ios" | "android";
 type Props = { url: string; title: string };
+
+type Target = {
+  name: string;
+  href: string;
+  Icon: Icon;
+  color: string;
+  // app links (instagram://, intent://) open in place rather than in a new tab
+  sameTab?: boolean;
+  // copies the poll link first, for apps that can't take it in the link
+  note?: string;
+  // opens the phone's share sheet instead, when the app's own link doesn't work
+  shareSheet?: boolean;
+  // shown next to the icon in the compact row
+  short?: string;
+};
 
 const outline = (p: SVGProps<SVGSVGElement>) => ({
   width: 18,
@@ -37,24 +52,106 @@ const MoreIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const INSTAGRAM = "#FF0069";
+// Android opens apps through intent links, with a web page to fall back to
+// when the app isn't installed.
+const androidIntent = (path: string, scheme: string, pkg: string, fallback: string) =>
+  `intent://${path}#Intent;scheme=${scheme};package=${pkg};S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
 
-function targets(url: string, title: string): Target[] {
+const INSTAGRAM_INBOX = "https://www.instagram.com/direct/inbox/";
+const MESSENGER_WEB = "https://www.facebook.com/messages/";
+
+// Notes on the links below, checked against each app's own link settings:
+// - Instagram can't take text in a link, so its options copy the link first.
+//   The story camera link isn't documented by Meta but is widely used.
+// - Messenger has no share link for websites on phones, so this uses the app's
+//   own fb-messenger://share link. On a computer it copies and opens chats.
+// - X's iPhone app opens its web share links in a built-in browser, so iPhones
+//   get the app's twitter://post link, which opens the compose screen.
+// - Facebook's app claims sharer.php but ignores it, so phones use the share
+//   sheet, the only route that hands Facebook the link.
+// - LinkedIn's app claims /cws/share and opens its share screen for it.
+function targets(url: string, title: string, device: Device): Target[] {
   const u = encodeURIComponent(url);
   const t = encodeURIComponent(title);
   const msg = encodeURIComponent(`${title} ${url}`);
-  return [
+  const phone = device !== "desktop";
+  const list: (Target | false)[] = [
     { name: "WhatsApp", href: `https://wa.me/?text=${msg}`, Icon: WhatsAppIcon, color: "#25D366" },
-    { name: "X", href: `https://x.com/intent/post?text=${t}&url=${u}`, Icon: XIcon, color: "currentColor" },
-    { name: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${u}`, Icon: FacebookIcon, color: "#1877F2" },
-    { name: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`, Icon: LinkedInIcon, color: "#0A66C2" },
+    {
+      name: "Instagram DM",
+      href: INSTAGRAM_INBOX,
+      Icon: InstagramIcon,
+      color: "#FF0069",
+      note: "Link copied. Paste it in an Instagram chat.",
+    },
+    phone && {
+      name: "Instagram Story",
+      href:
+        device === "android"
+          ? androidIntent("story-camera", "instagram", "com.instagram.android", "https://www.instagram.com/")
+          : "instagram://story-camera",
+      Icon: InstagramIcon,
+      color: "#FF0069",
+      sameTab: true,
+      note: "Link copied. Add it to your story with a Link sticker.",
+      short: "Story",
+    },
+    phone
+      ? {
+          name: "Messenger",
+          href:
+            device === "android"
+              ? androidIntent(`share/?link=${u}`, "fb-messenger", "com.facebook.orca", MESSENGER_WEB)
+              : `fb-messenger://share/?link=${u}`,
+          Icon: MessengerIcon,
+          color: "#0866FF",
+          sameTab: true,
+        }
+      : {
+          name: "Messenger",
+          href: MESSENGER_WEB,
+          Icon: MessengerIcon,
+          color: "#0866FF",
+          note: "Link copied. Paste it in a Messenger chat.",
+        },
+    {
+      name: "X",
+      href: device === "ios" ? `twitter://post?message=${msg}` : `https://x.com/intent/post?text=${t}&url=${u}`,
+      Icon: XIcon,
+      color: "currentColor",
+      sameTab: device === "ios",
+    },
+    {
+      name: "Facebook",
+      href: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
+      Icon: FacebookIcon,
+      color: "#1877F2",
+      shareSheet: phone,
+    },
+    { name: "LinkedIn", href: `https://www.linkedin.com/cws/share?url=${u}`, Icon: LinkedInIcon, color: "#0A66C2" },
     { name: "Telegram", href: `https://t.me/share/url?url=${u}&text=${t}`, Icon: TelegramIcon, color: "#26A5E4" },
     { name: "Reddit", href: `https://www.reddit.com/submit?url=${u}&title=${t}`, Icon: RedditIcon, color: "#FF4500" },
-    { name: "Email", href: `mailto:?subject=${t}&body=${msg}`, Icon: MailIcon, color: "currentColor" },
+    { name: "Email", href: `mailto:?subject=${t}&body=${msg}`, Icon: MailIcon, color: "currentColor", sameTab: true },
   ];
+  return list.filter((x): x is Target => Boolean(x));
 }
 
 const isPhone = () => window.matchMedia("(pointer: coarse)").matches;
+
+const subscribeDevice = (onChange: () => void) => {
+  const query = window.matchMedia("(pointer: coarse)");
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
+const deviceSnapshot = (): Device => {
+  if (!isPhone()) return "desktop";
+  if (/android/i.test(navigator.userAgent)) return "android";
+  // iPadOS reports itself as a Mac
+  return /iphone|ipad|ipod|macintosh/i.test(navigator.userAgent) ? "ios" : "android";
+};
+
+// "desktop" on the server, so phone-only options appear after hydration
+const useDevice = () => useSyncExternalStore(subscribeDevice, deviceSnapshot, () => "desktop" as Device);
 
 function useCopy(url: string) {
   const [copied, setCopied] = useState(false);
@@ -70,71 +167,56 @@ function useCopy(url: string) {
   return { copied, copy };
 }
 
-const itemClass = (compact?: boolean) =>
+function useNotice() {
+  const [notice, setNotice] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const show = (text: string) => {
+    clearTimeout(timer.current);
+    setNotice(text);
+    timer.current = setTimeout(() => setNotice(null), 4000);
+  };
+  const node = notice && (
+    <div role="status" className="fixed inset-x-4 bottom-6 z-50 mx-auto w-fit rounded-full bg-fg px-4 py-2 text-sm text-bg shadow-raised">
+      {notice}
+    </div>
+  );
+  return { show, node };
+}
+
+const itemClass = (compact?: boolean, short?: boolean) =>
   cx(
     "flex items-center rounded-xl transition hover:bg-subtle",
-    compact ? "size-10 justify-center border border-border bg-card shadow-card" : "w-full gap-3 px-3 py-2 text-left text-sm",
+    !compact && "w-full gap-3 px-3 py-2 text-left text-sm",
+    compact && "h-10 justify-center border border-border bg-card shadow-card",
+    compact && (short ? "gap-2 px-3 text-sm" : "w-10"),
   );
 
-function TargetLink({ target, compact, onPick }: { target: Target; compact?: boolean; onPick?: () => void }) {
+function TargetLink({ target, url, title, compact, onPick }: { target: Target; url: string; title: string; compact?: boolean; onPick: (note?: string) => void }) {
   const { Icon } = target;
+
+  function onClick(e: React.MouseEvent) {
+    if (target.shareSheet && typeof navigator.share === "function") {
+      e.preventDefault();
+      navigator.share({ title, text: title, url }).catch(() => {});
+    } else if (target.note) {
+      navigator.clipboard?.writeText(url).catch(() => {});
+    }
+    onPick(target.note);
+  }
+
   return (
     <a
       href={target.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={onPick}
-      aria-label={`Share on ${target.name}`}
-      title={target.name}
-      className={itemClass(compact)}
+      {...(target.sameTab ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+      onClick={onClick}
+      aria-label={target.note ? `Copy link and open ${target.name}` : `Share on ${target.name}`}
+      title={target.note ? `Copies the link and opens ${target.name}` : target.name}
+      className={itemClass(compact, Boolean(target.short))}
     >
       <Icon style={{ color: target.color }} />
       {!compact && <span>{target.name}</span>}
-    </a>
-  );
-}
-
-const INSTAGRAM_INBOX = "https://www.instagram.com/direct/inbox/";
-
-// Instagram has no share link for websites. Phones list it in the share sheet,
-// and it opens its own send screen with the link ready. On a computer we copy
-// the link and open Instagram's inbox so it can be pasted into a chat.
-function InstagramLink({ url, title, compact }: { url: string; title: string; compact?: boolean }) {
-  const [copied, setCopied] = useState(false);
-
-  function copyLink() {
-    navigator.clipboard?.writeText(url).then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      },
-      () => {},
-    );
-  }
-
-  function onClick(e: React.MouseEvent) {
-    if (isPhone() && typeof navigator.share === "function") {
-      e.preventDefault();
-      navigator.share({ title, text: title, url }).catch((err: Error) => {
-        if (err.name !== "AbortError") copyLink();
-      });
-      return;
-    }
-    copyLink();
-  }
-
-  return (
-    <a
-      href={INSTAGRAM_INBOX}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={onClick}
-      aria-label="Share on Instagram"
-      title={copied ? "Link copied" : "Instagram"}
-      className={itemClass(compact)}
-    >
-      {copied && compact ? <CheckIcon width={18} height={18} className="text-ok" /> : <InstagramIcon style={{ color: INSTAGRAM }} />}
-      {!compact && <span>{copied ? "Instagram · link copied" : "Instagram"}</span>}
+      {!compact && target.note && <span className="ml-auto text-xs text-muted">Copies link</span>}
+      {compact && target.short && <span>{target.short}</span>}
     </a>
   );
 }
@@ -145,16 +227,19 @@ export function ShareMenu({ url, title }: Props) {
   const [canNativeShare, setCanNativeShare] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { copied, copy } = useCopy(url);
+  const notice = useNotice();
+  const device = useDevice();
 
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
+    // pointerdown, since iPhone Safari doesn't send mouse events for taps on plain content
+    const close = (e: PointerEvent | KeyboardEvent) => {
       if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", close);
+    document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", close);
     return () => {
-      document.removeEventListener("mousedown", close);
+      document.removeEventListener("pointerdown", close);
       document.removeEventListener("keydown", close);
     };
   }, [open]);
@@ -164,13 +249,16 @@ export function ShareMenu({ url, title }: Props) {
     setOpen((v) => !v);
   }
 
-  async function nativeShare() {
-    try {
-      await navigator.share({ title, url });
-      setOpen(false);
-    } catch {
+  function pick(note?: string) {
+    setOpen(false);
+    if (note) notice.show(note);
+  }
+
+  function nativeShare() {
+    setOpen(false);
+    navigator.share({ title, url }).catch(() => {
       // closed or not allowed
-    }
+    });
   }
 
   return (
@@ -180,12 +268,9 @@ export function ShareMenu({ url, title }: Props) {
         Share
       </Button>
       {open && (
-        <div role="menu" className="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-border bg-card p-1.5 shadow-raised">
-          {targets(url, title).map((t) => (
-            <Fragment key={t.name}>
-              <TargetLink target={t} onPick={() => setOpen(false)} />
-              {t.name === "WhatsApp" && <InstagramLink url={url} title={title} />}
-            </Fragment>
+        <div role="menu" className="absolute right-0 z-30 mt-2 max-h-[70vh] w-64 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-raised">
+          {targets(url, title, device).map((t) => (
+            <TargetLink key={t.name} target={t} url={url} title={title} onPick={pick} />
           ))}
           <div className="my-1 h-px bg-border" />
           <button type="button" onClick={copy} className={itemClass()}>
@@ -200,6 +285,7 @@ export function ShareMenu({ url, title }: Props) {
           )}
         </div>
       )}
+      {notice.node}
     </div>
   );
 }
@@ -207,18 +293,21 @@ export function ShareMenu({ url, title }: Props) {
 /** Row of share buttons, shown when a poll has just gone live. */
 export function ShareRow({ url, title }: Props) {
   const { copied, copy } = useCopy(url);
+  const notice = useNotice();
+  const device = useDevice();
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {targets(url, title).map((t) => (
-        <Fragment key={t.name}>
-          <TargetLink target={t} compact />
-          {t.name === "WhatsApp" && <InstagramLink url={url} title={title} compact />}
-        </Fragment>
-      ))}
-      <Button variant="secondary" onClick={copy} className="h-10">
-        {copied ? <CheckIcon width={16} height={16} /> : <LinkIcon width={16} height={16} />}
-        {copied ? "Copied" : "Copy link"}
-      </Button>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {targets(url, title, device).map((t) => (
+          <TargetLink key={t.name} target={t} url={url} title={title} compact onPick={(note) => note && notice.show(note)} />
+        ))}
+        <Button variant="secondary" onClick={copy} className="h-10">
+          {copied ? <CheckIcon width={16} height={16} /> : <LinkIcon width={16} height={16} />}
+          {copied ? "Copied" : "Copy link"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted">Apps that can&apos;t take a link directly, like Instagram, get it copied first so it&apos;s ready to paste.</p>
+      {notice.node}
     </div>
   );
 }
